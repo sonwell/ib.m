@@ -57,24 +57,24 @@ function [f, data] = sk_force(orig, curr, E, b)
     trCa = ((curr.Ea .* orig.G + curr.E .* orig.Ga - 2 * curr.Fa .* orig.F - 2 * curr.F .* orig.Fa + curr.Ga .* orig.E + curr.G .* orig.Ea) - trC .* detG0a) ./ detG0;
     trCb = ((curr.Eb .* orig.G + curr.E .* orig.Gb - 2 * curr.Fb .* orig.F - 2 * curr.F .* orig.Fb + curr.Gb .* orig.E + curr.G .* orig.Eb) - trC .* detG0b) ./ detG0;
         
-%    s = sqrt(detG0);
-%
-%    c0 = E * (trC - 1) ./ s;
-%    c0a = (E * trCa - c0 .* detG0a ./ (2 * s)) ./ s;
-%    c0b = (E * trCb - c0 .* detG0b ./ (2 * s)) ./ s;
-%
-%    c1 = (b * (detC - 1) - E) ./ s;
-%    c1a = (b * detCa - c1 .* detG0a ./ (2 * s)) ./ s;
-%    c1b = (b * detCb - c1 .* detG0b ./ (2 * s)) ./ s;
-    s = sqrt(detG);
+    s = sqrt(detG0);
 
-    c0 = E * (trC - 1) .* s ./ detG0;
-    c0a = E * trCa .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
-    c0b = E * trCb .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
+    c0 = E * (trC - 1) ./ s;
+    c0a = (E * trCa - c0 .* detG0a ./ (2 * s)) ./ s;
+    c0b = (E * trCb - c0 .* detG0b ./ (2 * s)) ./ s;
 
-    c1 = (b * (detC - 1) - E) .* s ./ detG0;
-    c1a = b * detCa .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
-    c1b = b * detCb .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
+    c1 = (b * (detC - 1) - E) ./ s;
+    c1a = (b * detCa - c1 .* detG0a ./ (2 * s)) ./ s;
+    c1b = (b * detCb - c1 .* detG0b ./ (2 * s)) ./ s;
+%    s = sqrt(detG);
+%
+%    c0 = E * (trC - 1) .* s ./ detG0;
+%    c0a = E * trCa .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
+%    c0b = E * trCb .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
+%
+%    c1 = (b * (detC - 1) - E) .* s ./ detG0;
+%    c1a = b * detCa .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
+%    c1b = b * detCb .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
 
     cE = c0 .* orig.G + c1 .* curr.G;
     cEa = c0a .* orig.G + c0 .* orig.Ga + c1a .* curr.G + c1 .* curr.Ga;
