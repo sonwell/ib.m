@@ -48,7 +48,7 @@ function G = e2l(N, pt, offset, vf, V)
 end
 
 function d = nearest_grid_index(N, pt)
-    d = floor(mod(pt, 1) * N + 1e-14);
+    d = floor(mod(pt, 1) * N);
 end
 
 function v = delta(N, d)
