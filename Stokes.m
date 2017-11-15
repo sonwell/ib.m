@@ -1,5 +1,4 @@
 function [U, P] = Stokes(fn, rho, mu, k, N, U, F)
-    tic
     G = spdiags(ones(N, 2), [-N + 1, 1], N, N);
     E = spdiags(ones(N, 4), [-N+1, -1, 1, N-1], N, N);
     A = spdiags(ones(N, 1) * [1 1 -6 1 1], [-N+1, -1, 0, 1, N-1], N, N);
@@ -18,7 +17,6 @@ function [U, P] = Stokes(fn, rho, mu, k, N, U, F)
     dtphi = L \ dU;
     U = U + [Dx' * dtphi, Dy' * dtphi, Dz' * dtphi];
     P = Hm * dtphi / k;
-    toc
 end
 
 function [U, Hm] = be(rho, mu, k, I, L, U, F)

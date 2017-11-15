@@ -1,23 +1,22 @@
 function f = ForceCalculator(alpha, beta, gamma, delta, x0, y0, z0, youngs, bulk, bending)
-    %f = force_calculator(0.892817451684828, alpha, beta, x0, y0, z0, youngs, bulk, bending);
-    f = force_calculator(1.892817451684828, alpha, beta, gamma, delta, x0, y0, z0, youngs, bulk, bending);
+    f = force_calculator(0.25, alpha, beta, gamma, delta, x0, y0, z0, youngs, bulk, bending);
 end
 
 function calculator = force_calculator(e, a, b, c, d, x0, y0, z0, youngs, bulk, bending)
-    [I, Da, Db, DaDa, DaDb, DbDb] = RBFOperators(e, a, b, c, d);
-    geometry = SurfaceGeometryCalculator(Da, Db, DaDa, DaDb, DbDb);
+    [I, Da, Db, Daa, Dab, Dbb] = RBFOperators(e, a, b, c, d);
+    geometry = SurfaceGeometryCalculator(Da, Db, Daa, Dab, Dbb);
     orig = geometry(x0, y0, z0);
     
-    function [P, fsk, fb, sdata, bdata] = f_calculator(x, y, z)
-        P = I * [x y z];
+    function [X, fsk, fb, curr] = f_calculator(x, y, z)
+        X = I * [x y z];
         curr = geometry(x, y, z);
-        [fsk, sdata] = sk_force(orig, curr, youngs, bulk);
-        [fb, bdata] = bending_force(orig, curr, bending);
+        fsk = sk_force(orig, curr, youngs, bulk);
+        fb = bending_force(orig, curr, bending);
     end
     calculator = @f_calculator;
 end
 
-function [f, data] = sk_force(orig, curr, E, b)
+function f = sk_force(orig, curr, E, b)
     detG = curr.E .* curr.G - curr.F .^ 2;
     detGa = curr.Ea .* curr.G + curr.E .* curr.Ga - 2 * curr.F .* curr.Fa;
     detGb = curr.Eb .* curr.G + curr.E .* curr.Gb - 2 * curr.F .* curr.Fb;
@@ -43,15 +42,6 @@ function [f, data] = sk_force(orig, curr, E, b)
     c1 = (b * (detC - 1) - E) ./ s;
     c1a = (b * detCa - c1 .* detG0a ./ (2 * s)) ./ s;
     c1b = (b * detCb - c1 .* detG0b ./ (2 * s)) ./ s;
-%    s = sqrt(detG);
-%
-%    c0 = E * (trC - 1) .* s ./ detG0;
-%    c0a = E * trCa .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
-%    c0b = E * trCb .* s ./ detG0 + E * (trC - 1) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
-%
-%    c1 = (b * (detC - 1) - E) .* s ./ detG0;
-%    c1a = b * detCa .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGa ./ (2 * s) - s .* detG0a ./ detG0);
-%    c1b = b * detCb .* s ./ detG0 + (b * (detC - 1) - E) ./ detG0 .* (detGb ./ (2 * s) - s .* detG0b ./ detG0);
 
     cE = c0 .* orig.G + c1 .* curr.G;
     cEa = c0a .* orig.G + c0 .* orig.Ga + c1a .* curr.G + c1 .* curr.Ga;
@@ -65,16 +55,12 @@ function [f, data] = sk_force(orig, curr, E, b)
     fb = [cG cG cG] .* curr.tbb + [cGb cGb cGb] .* curr.tb + [cF cF cF] .* curr.tab + [cFb cFb cFb] .* curr.ta;
 
     f = (fa + fb) ./ [s s s];
-    %f = E / 4 * ((trC - 2).^2 + 2 * (trC - 2) - 2 * (detC - 1)) + b / 4 * (detC - 1).^2
-    s11 = E * (trC - 1) .* orig.G + (b * (detC - 1) - E) .* curr.G;
-    s12 = E * (trC - 1) .* orig.F + (b * (detC - 1) - E) .* curr.F;
-    s22 = E * (trC - 1) .* orig.E + (b * (detC - 1) - E) .* curr.E;
-
-    data = [s11 s12 s22];
 end
 
-function [f, data] = bending_force(orig, curr, k)
-    mag = k * curr.H .* (curr.H .^2 - curr.K);
+function f = bending_force(orig, curr, k)
+    detG = curr.E .* curr.G - curr.F .^ 2;
+    detG0 = orig.E .* orig.G - orig.F .^ 2;
+    detC = detG ./ detG0;
+    mag = k * curr.H .* (curr.H .^2 - curr.K) .* sqrt(detC);
     f = [mag mag mag] .* curr.n;
-    data = curr.H;
 end

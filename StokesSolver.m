@@ -1,10 +1,9 @@
 function solver = StokesSolver(rho, mu, k, N)
     G = spdiags(ones(N, 2), [-N + 1, 1], N, N);
-    E = spdiags(ones(N, 4), [-N+1, -1, 1, N-1], N, N);
-    A = spdiags(ones(N, 1) * [1 1 -6 1 1], [-N+1, -1, 0, 1, N-1], N, N);
+    A = spdiags(ones(N, 1) * [1 1 -2 1 1], [-N+1, -1, 0, 1, N-1], N, N);
     I = speye(N);
     I3 = kron(I, kron(I, I));
-    L = N * N * (kron(E, kron(I, I)) + kron(I, kron(E, I)) + kron(I, kron(I, A)));
+    L = N * N * (kron(A, kron(I, I)) + kron(I, kron(A, I)) + kron(I, kron(I, A)));
     
     lambda = mu * k / (2 * rho);
     Hp = I3 + lambda * L;

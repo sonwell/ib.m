@@ -1,12 +1,12 @@
-function calculator = SurfaceGeometryCalculator(Da, Db, DaDa, DaDb, DbDb)
+function calculator = SurfaceGeometryCalculator(Da, Db, Daa, Dab, Dbb)
     function S = geometry(x, y, z)
         X = [x y z];
         ta = Da * X;
         tb = Db * X;
 
-        taa = DaDa * X;
-        tab = DaDb * X;
-        tbb = DbDb * X;
+        taa = Daa * X;
+        tab = Dab * X;
+        tbb = Dbb * X;
 
         m = cross(ta, tb, 2);
 
