@@ -1,4 +1,6 @@
-function X = RBCShape(alpha, beta)
+function X = RBCShape(params)
+    alpha = params(:, 1);
+    beta = params(:, 2);
     R = 2^-11;
     xs = sin(beta) .* cos(alpha);
     ys = sin(beta) .* sin(alpha);

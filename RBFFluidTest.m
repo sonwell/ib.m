@@ -1,17 +1,10 @@
-function X = RBFFluidTest(domain, CP, EP, rho, mu, shape)
-    alpha = CP(:, 1);
-    beta = CP(:, 2);
-    gamma = EP(:, 1);
-    delta = EP(:, 2);
-
-    structure = Structure(1, alpha, beta, gamma, delta, shape);
-
+function X = RBFFluidTest(domain, rho, mu, structure)
     nx = domain.nx;
     ny = domain.ny;
     nz = domain.nz;
     h = (domain.bounds(:, 2) - domain.bounds(:, 1))' ./ [nx ny nz];
 
-    force = ForceCalculator(structure, 2.5e-3, 2.5e-1, 0);
+    force = ForceCalculator(structure); %, 2.5e-3, 2.5e-1, 0);
     sa = SurfaceArea(structure);
     volume = prod(h);
 
@@ -42,7 +35,9 @@ function X = RBFFluidTest(domain, CP, EP, rho, mu, shape)
     Fy = -mu * (L * Ue(:, 2));
     Ff(:, 2) = Fy;
 
-    X = shape(alpha, beta);
+    shape = structure.reference;
+    params = structure.interpolation.parametrization;
+    X = shape(params);
     for s = 0:400
         [Fl, Xl] = force(X);
         Fc = spread(Xl, Fl, sa);

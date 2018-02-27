@@ -11,12 +11,15 @@ function area = SurfaceArea(structure)
 
     transform = structure.reference;
     geometry = SurfaceGeometryCalculator(structure);
-    alpha = structure.interpolation.theta;
-    beta = structure.interpolation.lambda;
-    X0 = [sin(beta) .* cos(alpha), sin(beta) .* sin(alpha), cos(beta)];
-    Xt = transform(alpha, beta);
-    orig = geometry(X0);
-    curr = geometry(Xt);
+    params = structure.interpolation.parametrization;
+    orig = geometry(sphere(params));
+    curr = geometry(transform(params));
     da = sqrt((curr.E .* curr.G - curr.F.^2) ./ (orig.E .* orig.G - orig.F.^2));
     area = da .*  esa;
+end
+
+function x = sphere(params)
+    alpha = params(:, 1);
+    beta = params(:, 2);
+    x = [sin(beta) .* cos(alpha), sin(beta) .* sin(alpha), cos(beta)];
 end

@@ -1,15 +1,11 @@
-function structure = Structure(eps, alpha, beta, gamma, delta, reference)
-    [id, da, db, daa, dab, dbb, phi] = RBFOperators(eps, alpha, beta, alpha, beta);
-    interpolation.lambda = beta;
-    interpolation.theta = alpha;
-    interpolation.n = size(alpha, 1);
+function structure = Structure(params, reference, varargin)
+    interpolation.parametrization = params.data_sites;
+    interpolation.n = size(params.data_sites, 1);
 
-    [id, da, db, daa, dab, dbb, phi] = RBFOperators(eps, alpha, beta, gamma, delta);
-    evaluation.lambda = delta;
-    evaluation.theta = gamma;
-    evaluation.n = size(gamma, 1);
+    evaluation.parametrization = params.sample_sites;
+    evaluation.n = size(params.sample_sites, 1);
 
-    structure.eps = eps;
+    [id, da, db, daa, dab, dbb, phi] = RBFOperators(params.data_sites, params.sample_sites);
     structure.interpolation = interpolation;
     structure.evaluation = evaluation;
     structure.reference = reference;
@@ -20,4 +16,6 @@ function structure = Structure(eps, alpha, beta, gamma, delta, reference)
     structure.dab = dab;
     structure.dbb = dbb;
     structure.phi = phi;
+
+    structure.force = CombineForces(varargin{:});
 end

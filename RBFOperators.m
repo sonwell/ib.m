@@ -1,11 +1,16 @@
-function [I, Da, Db, Daa, Dab, Dbb, Phi] = RBFOperators(eps, alpha, beta, gamma, delta)
+function [I, Da, Db, Daa, Dab, Dbb, Phi] = RBFOperators(data, sample)
     N = 20;
     meps = 2^-52;  % machine epsilon
     phi = @(r) real(log(r + meps) .* r.^N);
     dphi = @(r, drdx) real((1 + N * log(r + meps)).* r.^(N-2) .* drdx);
     ddphi = @(r, d2rdx2, drdx) real((2 * N - 2 + N * (N-2) * log(r + meps)) .* r.^(N-4) .* drdx + dphi(r, d2rdx2));
 
+    alpha = data(:, 1);
+    beta = data(:, 2);
+
     npts = size(alpha, 1);
+    [ca2, ca1] = ndgrid(alpha, alpha);
+    ca = ca2 - ca1;
     ca = DifferenceMatrix(alpha, alpha);
     [ctj, ctk] = ndgrid(beta, beta);
     IDM = sqrt(2*(1-sin(ctj).*sin(ctk).*cos(ca)-cos(ctk).*cos(ctj)));
@@ -13,8 +18,12 @@ function [I, Da, Db, Daa, Dab, Dbb, Phi] = RBFOperators(eps, alpha, beta, gamma,
     on = ones(npts, 1);
     IM = [ICM on; on' 0];
 
+    gamma = sample(:, 1);
+    delta = sample(:, 2);
+
     mpts = size(gamma, 1);
-    ea = DifferenceMatrix(gamma, alpha);
+    [ea2, ea1] = ndgrid(gamma, alpha);
+    ea = ea2 - ea1;
     [etj, etk] = ndgrid(delta, beta);
     EDM = sqrt(2*(1-sin(etj).*sin(etk).*cos(ea)-cos(etk).*cos(etj)));
     om = ones(mpts, 1);
