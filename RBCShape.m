@@ -8,6 +8,7 @@ function X = RBCShape(params)
 
     r = (xs.^2 + zs.^2);
     xt = 2^-9 + R * xs;
+    % Coefficients from Skalak, et al., (1973).
     yt = 2^-9 + R / 2 * ys .* (0.21 + 2.0 * r - 1.12 * r.^2);
     zt = 2^-9 + R * zs;
     X = [xt, yt, zt];

@@ -5,6 +5,7 @@ end
 function fn = initializer(orig, k)
     detG0 = orig.E .* orig.G - orig.F .^ 2;
 
+    % TODO Add Laplace-Beltrami term
     function f = forces(curr)
         detG = curr.E .* curr.G - curr.F .^ 2;
         detC = detG ./ detG0;

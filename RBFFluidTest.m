@@ -4,16 +4,16 @@ function X = RBFFluidTest(domain, rho, mu, structure)
     nz = domain.nz;
     h = (domain.bounds(:, 2) - domain.bounds(:, 1))' ./ [nx ny nz];
 
-    force = ForceCalculator(structure); %, 2.5e-3, 2.5e-1, 0);
+    force = ForceCalculator(structure);
     sa = SurfaceArea(structure);
     volume = prod(h);
 
     Ue = zeros(nx * ny * nz, 3);
     Ff = zeros(nx * ny * nz, 3);
-    Fy = zeros(nx * ny * nz, 1);
     bump = @(x) sin(pi * x).^4;
 
-    offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];
+    offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];  % MAC offsets
+    % Helpers functions for spreading and interpolation
     spread = @(x, f, da) ...
         [Transfer('l2e', domain, x, offsets(1, :), f(:, 1) .* da), ...
          Transfer('l2e', domain, x, offsets(2, :), f(:, 2) .* da), ...
@@ -35,24 +35,28 @@ function X = RBFFluidTest(domain, rho, mu, structure)
     Fy = -mu * (L * Ue(:, 2));
     Ff(:, 2) = Fy;
 
+    % Initial configuration is the reference configuration
     shape = structure.reference;
     params = structure.interpolation.parametrization;
     X = shape(params);
     for s = 0:400
+        % Backward euler step
         [Fl, Xl] = force(X);
         Fc = spread(Xl, Fl, sa);
         [Us, ~] = solver(handles{1}, Ue, Fc + Ff);
         Ul = interpolate(X, Us, volume);
         Xi = X + (k/2) * Ul;
 
+        % Crank-Nicolson step
         [Fl, Xl] = force(Xi);
         Fc = spread(Xl, Fl, sa);
         [Ue, ~] = solver(handles{2}, Ue, Fc + Ff);
         Ul = interpolate(X, Ue, volume);
         X = X + k * Ul;
 
+        % Plot
         scatter3(Xl(:, 1), Xl(:, 2), Xl(:, 3), 200, sa, 'filled');
-        axis equal;% axis vis3d;
+        axis equal;
         xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
         title(sprintf('t = %f', s * k));
         drawnow;
