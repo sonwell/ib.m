@@ -1,6 +1,11 @@
-function calculator = SurfaceGeometryCalculator(Da, Db, Daa, Dab, Dbb)
-    function S = geometry(x, y, z)
-        X = [x y z];
+function calculator = SurfaceGeometryCalculator(structure)
+    Da = structure.da;
+    Db = structure.db;
+    Daa = structure.daa;
+    Dab = structure.dab;
+    Dbb = structure.dbb;
+
+    function S = geometry(X)
         ta = Da * X;
         tb = Db * X;
 
@@ -14,7 +19,7 @@ function calculator = SurfaceGeometryCalculator(Da, Db, Daa, Dab, Dbb)
         F = dot(ta, tb, 2);
         G = dot(tb, tb, 2);
 
-        J = sqrt(E .* G - F .^ 2);
+        J = sqrt(E .* G - F.^2);
         n = [1./J 1./J 1./J] .* m;
 
         e = dot(taa, n, 2);

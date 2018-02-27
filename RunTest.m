@@ -1,2 +1,4 @@
-load nodesets/sphere.mat;
-RBFFluidTest(20, sphere.data_sites, sphere.sample_sites, 4.096e-9, 1.6e-5);
+function X = RunTest(domain, shape)
+    load nodesets/sphere.mat;
+    X = RBFFluidTest(domain, sphere.data_sites, sphere.sample_sites, 1, 8.9e-4, shape);
+end

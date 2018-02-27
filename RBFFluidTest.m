@@ -1,82 +1,65 @@
-function RBFFluidTest(N, CP, EP, rho, mu)
+function X = RBFFluidTest(domain, CP, EP, rho, mu, shape)
     alpha = CP(:, 1);
     beta = CP(:, 2);
     gamma = EP(:, 1);
     delta = EP(:, 2);
 
-    % initial configuration
-    R = 0.25;
-    x = sin(beta) .* cos(alpha);
-    y = sin(beta) .* sin(alpha);
-    z = cos(beta);
+    structure = Structure(1, alpha, beta, gamma, delta, shape);
 
-    x = 0.5 + R * x;
-    y = 0.5 + R * y;
-    z = 0.5 + R * z;
+    nx = domain.nx;
+    ny = domain.ny;
+    nz = domain.nz;
+    h = (domain.bounds(:, 2) - domain.bounds(:, 1))' ./ [nx ny nz];
 
-    o = ones(N, 1);
-    i = (0:(N-1))' / N;
-    O = kron(o, kron(o, o));
-    c = 0.5 / N + [kron(o, kron(o, i)), kron(o, kron(i, o)), kron(i, kron(o, o))];
-    gx = c + O * [-0.5 / N 0 0];
-    gy = c + O * [0 -0.5 / N 0];
-    gz = c + O * [0 0 -0.5 / N];
+    force = ForceCalculator(structure, 2.5e-3, 2.5e-1, 0);
+    sa = SurfaceArea(structure);
+    volume = prod(h);
 
-    Force = ForceCalculator(alpha, beta, gamma, delta, x, y, z, 1e-3, 1e-2, 3.9e-7);
-    pts = size(EP, 1);
-    sa = 4 * pi * R^2 / pts;
+    Ue = zeros(nx * ny * nz, 3);
+    Ff = zeros(nx * ny * nz, 3);
+    Fy = zeros(nx * ny * nz, 1);
+    bump = @(x) sin(pi * x).^4;
 
-    Ue = zeros(N^3, 3);
-    Ff = zeros(N^3, 3);
+    offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];
+    spread = @(x, f, da) ...
+        [Transfer('l2e', domain, x, offsets(1, :), f(:, 1) .* da), ...
+         Transfer('l2e', domain, x, offsets(2, :), f(:, 2) .* da), ...
+         Transfer('l2e', domain, x, offsets(3, :), f(:, 3) .* da)];
+    interpolate = @(x, u, dv) ...
+        [Transfer('e2l', domain, x, offsets(1, :), u(:, 1) .* dv), ...
+         Transfer('e2l', domain, x, offsets(2, :), u(:, 2) .* dv), ...
+         Transfer('e2l', domain, x, offsets(3, :), u(:, 3) .* dv)];
 
-    sps = 1000000;
-    k = 1 / sps;
-    eps = 0.001;
-    Z = gy(:, 3);
+    k = 0.015 * exp(mean(log(h)));
+    [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k);
 
-    Ue(:, 2) = 1;
-    Ff(:, 2) = 0;
-    Solver = StokesSolver(rho, mu, k, N);
-    for m = 1:30
-        for n = 1:sps
-            [Xl, Fls, Flb, curr] = Force(x, y, z);
-            Fl = Fls + Flb;
+    xs = linspace(0.5/domain.nx, 1 - 0.5/domain.nx, domain.nx);
+    ys = linspace(0, 1 - 1/domain.ny, domain.ny);
+    zs = linspace(0.5/domain.nz, 1 - 0.5/domain.nz, domain.nz);
+    [XS, YS, ZS] = ndgrid(xs, ys, zs);
+    Uy = bump(XS(:)) .* bump(ZS(:));
+    Ue(:, 2) = Uy;
+    Fy = -mu * (L * Ue(:, 2));
+    Ff(:, 2) = Fy;
 
-            Fex = BetterTransfer('l2e', N, Xl, [0 0.5 0.5] / N, Fl(:, 1), sa);
-            Fey = BetterTransfer('l2e', N, Xl, [0.5 0 0.5] / N, Fl(:, 2), sa);
-            Fez = BetterTransfer('l2e', N, Xl, [0.5 0.5 0] / N, Fl(:, 3), sa);
-            Fe = [Fex Fey Fez];
+    X = shape(alpha, beta);
+    for s = 0:400
+        [Fl, Xl] = force(X);
+        Fc = spread(Xl, Fl, sa);
+        [Us, ~] = solver(handles{1}, Ue, Fc + Ff);
+        Ul = interpolate(X, Us, volume);
+        Xi = X + (k/2) * Ul;
 
-            [Us, Ps] = Solver('be', Ue, Fe + Ff);
-            Ulx = BetterTransfer('e2l', N, [x y z], [0 0.5 0.5] / N, Us(:, 1), 1 / N^3);
-            Uly = BetterTransfer('e2l', N, [x y z], [0.5 0 0.5] / N, Us(:, 2), 1 / N^3);
-            Ulz = BetterTransfer('e2l', N, [x y z], [0.5 0.5 0] / N, Us(:, 3), 1 / N^3);
+        [Fl, Xl] = force(Xi);
+        Fc = spread(Xl, Fl, sa);
+        [Ue, ~] = solver(handles{2}, Ue, Fc + Ff);
+        Ul = interpolate(X, Ue, volume);
+        X = X + k * Ul;
 
-            xi = x + k / 2 * Ulx;
-            yi = y + k / 2 * Uly;
-            zi = z + k / 2 * Ulz;
-
-            [Xl, Fls, Flb] = Force(xi, yi, zi);
-            Fl = Fls + Flb;
-
-            Fex = BetterTransfer('l2e', N, Xl, [0 0.5 0.5] / N, Fl(:, 1), sa);
-            Fey = BetterTransfer('l2e', N, Xl, [0.5 0 0.5] / N, Fl(:, 2), sa);
-            Fez = BetterTransfer('l2e', N, Xl, [0.5 0.5 0] / N, Fl(:, 3), sa);
-            Fe = [Fex Fey Fez];
-
-            [Ue, Pe] = Solver('cn', Ue, Fe + Ff);
-            Ulx = BetterTransfer('e2l', N, [x y z], [0 0.5 0.5] / N, Ue(:, 1), 1 / N^3);
-            Uly = BetterTransfer('e2l', N, [x y z], [0.5 0 0.5] / N, Ue(:, 2), 1 / N^3);
-            Ulz = BetterTransfer('e2l', N, [x y z], [0.5 0.5 0] / N, Ue(:, 3), 1 / N^3);
-
-            x = x + k * Ulx;
-            y = y + k * Uly;
-            z = z + k * Ulz;
-
-            scatter3(Xl(:, 1), Xl(:, 2), Xl(:, 3), 200, sin(gamma) .* sin(delta), 'filled')
-            axis equal; axis vis3d;
-            colorbar;
-            drawnow;
-        end
+        scatter3(Xl(:, 1), Xl(:, 2), Xl(:, 3), 200, sa, 'filled');
+        axis equal;% axis vis3d;
+        xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
+        title(sprintf('t = %f', s * k));
+        drawnow;
     end
 end
