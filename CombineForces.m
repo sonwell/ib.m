@@ -1,5 +1,5 @@
 function fn = CombineForces(varargin)
-    if length(varargin) == 0
+    if isempty(varargin)
         fn = @null_forces;
     elseif length(varargin) == 1
         fn = varargin{1};
@@ -8,10 +8,11 @@ function fn = CombineForces(varargin)
     end
 end
 
-function fn = null_forces(orig)
+function fn = null_forces(~)
     function f = zero(curr)
         f = 0 * curr.E;
     end
+    fn = @zero;
 end
 
 function fn = combine(left, right)

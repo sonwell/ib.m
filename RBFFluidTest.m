@@ -1,16 +1,31 @@
-function X = RBFFluidTest(domain, rho, mu, structure)
+function X = RBFFluidTest(domain, rho, mu, cell, vessel)
     nx = domain.nx;
     ny = domain.ny;
     nz = domain.nz;
     h = (domain.bounds(:, 2) - domain.bounds(:, 1))' ./ [nx ny nz];
 
-    force = ForceCalculator(structure);
-    sa = SurfaceArea(structure);
     volume = prod(h);
 
     Ue = zeros(nx * ny * nz, 3);
     Ff = zeros(nx * ny * nz, 3);
     bump = @(x) sin(pi * x).^4;
+
+    function cleanup()
+        gp = (0:31)'/32 * h;
+        [gpx, gpy, gpz] = ndgrid(gp(:, 1), gp(:, 2), gp(:, 3));
+        x = gpx(:);
+        y = gpy(:);
+        z = gpz(:);
+
+        quiver3(x, y, z, 1e-3 * Ue(:, 1), 1e-3 * Ue(:, 2), 1e-3 * Ue(:, 3), 'AutoScale', 'off');
+        xlim(domain.bounds(1, :));
+        ylim(domain.bounds(2, :));
+        zlim(domain.bounds(3, :));
+        axis equal;
+        axis vis3d;
+    end
+
+    cu = onCleanup(@cleanup);
 
     offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];  % MAC offsets
     % Helpers functions for spreading and interpolation
@@ -23,39 +38,48 @@ function X = RBFFluidTest(domain, rho, mu, structure)
          Transfer('e2l', domain, x, offsets(2, :), u(:, 2) .* dv), ...
          Transfer('e2l', domain, x, offsets(3, :), u(:, 3) .* dv)];
 
-    k = 0.015 * exp(mean(log(h)));
+    k = 1e-6; %0.015 * exp(mean(log(h)));
     [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k);
 
     xs = linspace(0.5/domain.nx, 1 - 0.5/domain.nx, domain.nx);
     ys = linspace(0, 1 - 1/domain.ny, domain.ny);
     zs = linspace(0.5/domain.nz, 1 - 0.5/domain.nz, domain.nz);
     [XS, YS, ZS] = ndgrid(xs, ys, zs);
-    Uy = bump(XS(:)) .* bump(ZS(:));
+    Uy = 0; %bump(XS(:)) .* bump(ZS(:));
     Ue(:, 2) = Uy;
-    Fy = -mu * (L * Ue(:, 2));
+    Fy = 1; %-mu * (L * Ue(:, 2));
     Ff(:, 2) = Fy;
 
     % Initial configuration is the reference configuration
-    shape = structure.reference;
-    params = structure.interpolation.parametrization;
-    X = shape(params);
-    for s = 0:400
-        % Backward euler step
-        [Fl, Xl] = force(X);
-        Fc = spread(Xl, Fl, sa);
-        [Us, ~] = solver(handles{1}, Ue, Fc + Ff);
-        Ul = interpolate(X, Us, volume);
-        Xi = X + (k/2) * Ul;
+    X = cell.shape(cell.data_sites);
+    Y = vessel.shape(vessel.data_sites);
+
+    for s = 0:150000
+        % Backward Euler step
+        [Flc, Xlc] = cell.force(X);
+        [Flv, Xlv] = vessel.force(Y);
+        Fc = spread(Xlc, Flc, cell.ds);
+        Fv = spread(Xlv, Flv, vessel.ds);
+        [Us, ~] = solver(handles{1}, Ue, Fc + Fv + Ff);
+        Ulc = interpolate(X, Us, volume);
+        Ulv = interpolate(Y, Us, volume);
+        Xi = X + (k/2) * Ulc;
+        Yi = Y + (k/2) * Ulv;
 
         % Crank-Nicolson step
-        [Fl, Xl] = force(Xi);
-        Fc = spread(Xl, Fl, sa);
-        [Ue, ~] = solver(handles{2}, Ue, Fc + Ff);
-        Ul = interpolate(X, Ue, volume);
-        X = X + k * Ul;
+        [Flc, Xlc] = cell.force(Xi);
+        [Flv, Xlv] = vessel.force(Yi);
+        Fc = spread(Xlc, Flc, cell.ds);
+        Fv = spread(Xlv, Flv, vessel.ds);
+        [Ue, ~] = solver(handles{2}, Ue, Fc + Fv + Ff);
+        Ulc = interpolate(X, Ue, volume);
+        Ulv = interpolate(Y, Ue, volume);
+        X = X + k * Ulc;
+        Y = Y + k * Ulv;
 
         % Plot
-        scatter3(Xl(:, 1), Xl(:, 2), Xl(:, 3), 200, sa, 'filled');
+        scatter3(Xlc(:, 1), Xlc(:, 2), Xlc(:, 3), 50, cell.ds, 'filled');
+        colorbar;
         axis equal;
         xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
         title(sprintf('t = %f', s * k));

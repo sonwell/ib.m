@@ -38,8 +38,8 @@ function [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k)
         div_u_star = Dx * u_star(:, 1) + Dy * u_star(:, 2) + Dz * u_star(:, 3);
         % The projections is super slow, so if you don't want to deal with it,
         % you could just let error in u ~ O(k/h) and just update:
-        %   u = u + du
-        %   p = 0
+        %   u = u + du;
+        %   p = 0;
         dtphi = L \ (div_u_star - mean(div_u_star));
         u = u_star + [Dx' * dtphi, Dy' * dtphi, Dz' * dtphi];
         p = H * dtphi / k;
