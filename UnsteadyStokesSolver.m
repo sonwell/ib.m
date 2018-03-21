@@ -39,7 +39,7 @@ function [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k)
         u_star = u + du;
         div_u_star = Dx * u_star(:, 1) + Dy * u_star(:, 2) + Dz * u_star(:, 3);
         pr = div_u_star - mean(div_u_star);
-        [dtphi, fl, rr, it, rv] = pcg(nL, -p, 1e-8, 100000, C2, C2');
+        [dtphi, fl, rr, it, rv] = pcg(nL, -pr, 1e-8, 100000, C2, C2');
         u = u_star + [Dx' * dtphi, Dy' * dtphi, Dz' * dtphi];
         p = H * dtphi / k;
     end
