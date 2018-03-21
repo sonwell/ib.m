@@ -16,10 +16,12 @@ function [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k)
     Dx = kron(Iz, kron(Iy, Gx));
     Dy = kron(Iz, kron(Gy, Ix));
     Dz = kron(Gz, kron(Iy, Ix));
+    nL = -L;
     
     lambda = mu * k / (2 * rho);
     H = I - lambda * L;
     C = ichol(H);
+    C2 = ichol(nL);
 
     function du = step(k, u, f)
         rhs = k / rho * (mu * (L * u) + f);
@@ -36,11 +38,8 @@ function [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k)
     function [u, p] = update(k, u, du)
         u_star = u + du;
         div_u_star = Dx * u_star(:, 1) + Dy * u_star(:, 2) + Dz * u_star(:, 3);
-        % The projections is super slow, so if you don't want to deal with it,
-        % you could just let error in u ~ O(k/h) and just update:
-        %   u = u + du;
-        %   p = 0;
-        dtphi = L \ (div_u_star - mean(div_u_star));
+        pr = div_u_star - mean(div_u_star);
+        [dtphi, fl, rr, it, rv] = pcg(nL, -p, 1e-8, 100000, C2, C2');
         u = u_star + [Dx' * dtphi, Dy' * dtphi, Dz' * dtphi];
         p = H * dtphi / k;
     end
