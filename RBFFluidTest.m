@@ -10,23 +10,6 @@ function X = RBFFluidTest(domain, rho, mu, cell, vessel)
     Ff = zeros(nx * ny * nz, 3);
     bump = @(x) sin(pi * x).^4;
 
-    function cleanup()
-        gp = (0:31)'/32 * h;
-        [gpx, gpy, gpz] = ndgrid(gp(:, 1), gp(:, 2), gp(:, 3));
-        x = gpx(:);
-        y = gpy(:);
-        z = gpz(:);
-
-        quiver3(x, y, z, 1e-3 * Ue(:, 1), 1e-3 * Ue(:, 2), 1e-3 * Ue(:, 3), 'AutoScale', 'off');
-        xlim(domain.bounds(1, :));
-        ylim(domain.bounds(2, :));
-        zlim(domain.bounds(3, :));
-        axis equal;
-        axis vis3d;
-    end
-
-    cu = onCleanup(@cleanup);
-
     offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];  % MAC offsets
     % Helpers functions for spreading and interpolation
     spread = @(x, f, da) ...

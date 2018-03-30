@@ -1,34 +1,30 @@
 classdef PeriodicCylinder < ClosedSurface
     methods
-        function obj = PeriodicCylinder(data, sample)
+        function obj = PeriodicCylinder(n, m)
             rbf = PolyharmonicSpline(4);
+            obj@ClosedSurface(n, m, rbf);
+            obj.ds = 2 * pi * obj.ds;
+        end
 
+        function [id, da, db, daa, dab, dbb, phi, psi] = operators(obj, rbf, data, sample)
             npts = size(data, 1);
-            r = PeriodicCylinder.metric(data, data);
+            r = obj.metric(data, data);
             phi = rbf.phi(r);
             one = ones(npts, 1);
-            zero = ones(npts, 1);
-            z = mod(data(:, 2), 1);
-            itp = [phi one z; one' 0 0; z' 0 0];
-            iit = [phi one; one' 0];
+            itp = [phi one data(:, 2); one' 0 0; data(:, 2)' 0 0];
             trim = @(m) m(:, 1:npts);
-            ds1 = iit' \ [zero; 2 * pi];
 
             mpts = size(sample, 1);
-            [r, r_a, r_b, r_aa, r_ab, r_bb] = PeriodicCylinder.metric(data, sample);
+            [r, r_a, r_b, r_aa, r_ab, r_bb] = obj.metric(data, sample);
+            psi = rbf.phi(r);
             one = ones(mpts, 1);
             zero = zeros(mpts, 1);
-            z = mod(sample(:, 2), 1);
-            id = trim((itp' \ [rbf.phi(r) one z]')');
+            id = trim((itp' \ [psi one sample(:, 2)]')');
             da = trim((itp' \ [rbf.dphi(r, r_a) zero zero]')');
             db = trim((itp' \ [rbf.dphi(r, r_b) zero one]')');
             daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) zero zero]')');
             dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) zero zero]')');
             dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) zero zero]')');
-            iid = trim((iit' \ [rbf.phi(r) one]')');
-
-            ds = iid * spdiags(1 ./ sum(iid)', [0], npts, npts) * ds1(1:npts);
-            obj@ClosedSurface(data, sample, id, da, db, daa, dab, dbb, phi, ds(1:mpts));
         end
     end
 
@@ -58,16 +54,6 @@ classdef PeriodicCylinder < ClosedSurface
             z = uniform;
             theta = mod(2 * pi * layers * uniform, 2 * pi);
             params = [theta z];
-            return;
-
-
-            %rotations = floor(sqrt(n / (2 * pi)));
-            %uniform = ((1:n)' - 0.5) / n;
-            %spacing = 1 + 0 * uniform;
-            %scaling = 1 / sum(spacing);
-            %z = cumsum(scaling * spacing);
-            %theta = 2 * pi * rotations * (z + (1 - flip(z)));
-            %params = [theta z];
         end
     end
 end
