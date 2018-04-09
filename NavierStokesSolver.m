@@ -1,4 +1,4 @@
-function [solver, L, handles] = UnsteadyStokesSolver(domain, rho, mu, k)
+function [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k)
     n = [domain.nx domain.ny domain.nz];
     h = (domain.bounds(:, 2) - domain.bounds(:, 1))' ./ n;
 
