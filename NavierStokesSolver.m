@@ -6,7 +6,7 @@ function [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k)
     identity = @(n, h) speye(n);
     differential = @(n, h) spdiags(ones(n, 1) * [1 -1 1] / h, [-n+1, 0, 1], n, n);
     laplacian = @(n, h) spdiags(ones(n, 1) * [1 1 -2 1 1] / h^2, [-n+1, -1, 0, 1, n-1], n, n);
-    average = @(n, h) spdiags(ones(n, 1) * [0.5 0.5 0.5], [-1, 1, n-1], n, n);
+    average = @(n, h) spdiags(ones(n, 1) * [0.5 0.5 0.5], [-1, 0, n-1], n, n);
 
     [Gx, Gy, Gz] = multiplex(differential, n, h);
     [Lx, Ly, Lz] = multiplex(laplacian, n, h);
@@ -33,9 +33,9 @@ function [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k)
         v = ul(:, 2);
         w = ul(:, 3);
 
-        axu = Ax * u; axv = Ax * v; axw = Ax * w;
-        ayu = Ay * u; ayv = Ay * v; ayw = Ay * w;
-        azu = Az * u; azv = Az * v; azw = Az * w;
+        axu = Mx * u; axv = Mx * v; axw = Mx * w;
+        ayu = My * u; ayv = My * v; ayw = My * w;
+        azu = Mz * u; azv = Mz * v; azw = Mz * w;
 
         uu = axu .* axu;
         uv = ayu .* axv;
@@ -53,7 +53,7 @@ function [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k)
 
     function du = step(k, u, ul, f)
         h = momentum(ul);
-        rhs = k / rho * (mu * (L * u) + h + f);
+        rhs = k * (1 / rho * (mu * (L * u) + f) - h);
 
         du = zeros(size(u));
         [dux, flx, rr, itx, rv] = pcg(H, rhs(:, 1), 1e-10, 100000, C, C');
@@ -74,7 +74,7 @@ function [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k)
     end
 
     function [u, p] = be_step(u, ul, f)
-        du = step(k/2, u, f);
+        du = step(k/2, u, ul, f);
         [u, p] = update(k/2, u, du);
     end
 

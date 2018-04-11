@@ -4,12 +4,13 @@ classdef BloodVessel < PeriodicCylinder & ForceMixin
             obj@PeriodicCylinder(n, m);
             obj@ForceMixin(varargin{:});
 
-            x = BloodVessel.shape(obj.data_sites);
-            y = PeriodicCylinder.shape(obj.data_sites);
+            data = obj.data_sites;
+            x = BloodVessel.shape(data);
+            y = PeriodicCylinder.shape(data);
             gx = obj.geometry(x);
             gy = obj.geometry(y);
             obj.ds = sqrt((gx.E .* gx.G - gx.F.^2) ./ (gy.E .* gy.G - gy.F.^2)) .* obj.ds;
-        end    
+        end
     end
 
     methods(Static)
@@ -23,9 +24,9 @@ classdef BloodVessel < PeriodicCylinder & ForceMixin
                 r = r + rho(-1 + 2 * (zeta - n));
             end
 
-            x = [2^-9 + 15e-4 * (1 - 0.25 * r) .* cos(theta), ...
+            x = [2^-9 + 15e-4 * (1 - 1/12 * r) .* cos(theta), ...
                  2^-8 * zeta, ...
-                 2^-9 + 15e-4 * (1 - 0.25 * r) .* sin(theta)];
+                 2^-9 + 15e-4 * (1 - 1/12 * r) .* sin(theta)];
         end
 
         function params = sample(n)
@@ -41,13 +42,12 @@ classdef BloodVessel < PeriodicCylinder & ForceMixin
                 r = r + rho(-1 + 2 * (uniform - n));
                 dr = dr + drho(-1 + 2 * (uniform - n));
             end
-            zspacing = ((1 / 36 + (0.25 * dr).^2)).^(-1/4);
-            zscaling = 1 / sum(zspacing);
-            z = cumsum(zscaling * zspacing) - zscaling * zspacing;
-            tspacing = ((1-0.25*r).^2).^(-1/2);
-            tscaling = 1 / sum(tspacing);
-            theta = mod(2 * pi * layers * (2 * cumsum(tscaling * tspacing) - tscaling * tspacing), 2 * pi);
-            %theta = mod(2 * pi * layers * uniform, 2 * pi);
+            % This spacing isn't quite right (constants should take into
+            % account the different radii).
+            spacing = (1 + dr.^2).^(-1/4);
+            scaling = 1 / sum(spacing);
+            z = cumsum(scaling * spacing) - scaling * spacing(1);
+            theta = mod(2 * pi * layers * uniform, 2 * pi);
             params = [theta z];
         end
     end
