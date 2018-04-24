@@ -4,6 +4,7 @@ classdef ClosedSurface
     properties
         data_sites  % Interpolation point parameters
         sample_sites  % Evaluation point parameters
+        rbf
         id  % Evaluation matrix
         da  % Differentiation matrix with respect to the first parameter
         db  % Differentiation matrix with respect to the second parameter
@@ -11,6 +12,8 @@ classdef ClosedSurface
         dab  % Mixed second derivative matrix
         dbb  % Second derivative matrix with respect to the second parameter
         ds  % "Element" surface area for each evaluation point
+        phi
+        psi
     end
 
     methods (Abstract, Static)
@@ -25,6 +28,7 @@ classdef ClosedSurface
             sample = obj.sample(m);
             [id, da, db, daa, dab, dbb, phi, psi] = obj.operators(rbf, data, sample);
 
+            obj.rbf = rbf;
             obj.data_sites = data;
             obj.sample_sites = sample;
             obj.id = id;
@@ -33,16 +37,46 @@ classdef ClosedSurface
             obj.daa = daa;
             obj.dab = dab;
             obj.dbb = dbb;
+            obj.phi = phi;
+            obj.psi = psi;
 
-            trim = @(M) M(:, 1:n);
-            itp = [phi ones(n, 1); ones(1, n) 0];
-            id2 = trim((itp' \ [psi ones(m, 1)]')');
-            sc = spdiags(1 ./ sum(id2)', [0], n, n);
-            w = itp' \ [zeros(n, 1); 1];
-            obj.ds = id2 * (sc * w(1:n));
+            obj.ds = obj.surface_area(phi, psi);
         end
 
-        function geom = parameters(obj, ta, tb, taa, tab, tbb)
+        function sa = surface_area(obj, phi, psi)
+            n = size(phi, 1);
+            m = size(psi, 1);
+            trim = @(M) M(:, 1:n);
+            itp = [phi ones(n, 1); ones(1, n) 0];
+            id = trim((itp' \ [psi ones(m, 1)]')');
+            sc = spdiags(1 ./ sum(id)', [0], n, n);
+            w = itp' \ [zeros(n, 1); 1];
+            sa = id * (sc * w(1:n));
+        end
+
+        function [px, py, pz] = surf(obj, x)
+            data = obj.data_sites;
+            rbf = obj.rbf;
+            n = size(data, 1);
+            phi = obj.phi;
+            one = ones(n, 1);
+            itp = [phi one; one' 0];
+            w = itp \ [x; zeros(1, size(x, 2))];
+
+            function y = surfer(u, v, c)
+                m = numel(u);
+                r = obj.metric(data, [u(:) v(:)]);
+                psi = rbf.phi(r);
+                one = ones(m, 1);
+                y = [psi one] * c;
+            end
+            
+            px = @(u, v) reshape(surfer(u, v, w(:, 1)), size(u));
+            py = @(u, v) reshape(surfer(u, v, w(:, 2)), size(u));
+            pz = @(u, v) reshape(surfer(u, v, w(:, 3)), size(u));
+        end
+
+        function geom = parameters(~, ta, tb, taa, tab, tbb)
             E = dot(ta, ta, 2);
             F = dot(ta, tb, 2);
             G = dot(tb, tb, 2);

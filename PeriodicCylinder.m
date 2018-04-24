@@ -26,6 +26,32 @@ classdef PeriodicCylinder < ClosedSurface
             dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) zero zero]')');
             dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) zero zero]')');
         end
+
+        function sa = surface_area(~, ~, psi)
+            sa = ones(size(psi, 1), 1);
+        end
+
+        function [px, py, pz] = surf(obj, x)
+            data = obj.data_sites;
+            rbf = obj.rbf;
+            n = size(data, 1);
+            phi = obj.phi;
+            one = ones(n, 1);
+            itp = [phi one data(:, 2); one' 0 0; data(:, 2)' 0 0];
+            w = itp \ [x; zeros(2, size(x, 2))];
+
+            function y = surfer(u, v, c)
+                m = numel(u);
+                r = obj.metric(data, [u(:) v(:)]);
+                psi = rbf.phi(r);
+                one = ones(m, 1);
+                y = [psi one v(:)] * c;
+            end
+
+            px = @(u, v) reshape(surfer(u, v, w(:, 1)), size(u));
+            py = @(u, v) reshape(surfer(u, v, w(:, 2)), size(u));
+            pz = @(u, v) reshape(surfer(u, v, w(:, 3)), size(u));
+        end
     end
 
     methods(Static)

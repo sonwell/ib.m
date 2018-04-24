@@ -8,7 +8,6 @@ function X = RBFFluidTest(domain, rho, mu, cell, vessel)
 
     Ue = zeros(nx * ny * nz, 3);
     Ff = zeros(nx * ny * nz, 3);
-    bump = @(x) sin(pi * x).^4;
 
     offsets = [0.0, 0.5, 0.5; 0.5, 0.0, 0.5; 0.5, 0.5, 0.0];  % MAC offsets
     % Helpers functions for spreading and interpolation
@@ -22,22 +21,25 @@ function X = RBFFluidTest(domain, rho, mu, cell, vessel)
          Transfer('e2l', domain, x, offsets(3, :), u(:, 3) .* dv)];
 
     k = 1e-6; %0.015 * exp(mean(log(h)));
-    [solver, L, handles] = NavierStokesSolver(domain, rho, mu, k);
+    [solver, ~, handles] = NavierStokesSolver(domain, rho, mu, k);
 
-    xs = linspace(0.5/domain.nx, 1 - 0.5/domain.nx, domain.nx);
-    ys = linspace(0, 1 - 1/domain.ny, domain.ny);
-    zs = linspace(0.5/domain.nz, 1 - 0.5/domain.nz, domain.nz);
-    [XS, YS, ZS] = ndgrid(xs, ys, zs);
-    Uy = 0; %bump(XS(:)) .* bump(ZS(:));
+    Uy = 0;
     Ue(:, 2) = Uy;
-    Fy = 1000; %-mu * (L * Ue(:, 2));
+    Fy = 8000; %-mu * (L * Ue(:, 2));
     Ff(:, 2) = Fy;
 
     % Initial configuration is the reference configuration
     X = cell.shape(cell.data_sites);
     Y = vessel.shape(vessel.data_sites);
-    X0 = X;
 
+    ls = domain.bounds(:, 2) - domain.bounds(:, 1);
+    lw = domain.bounds(:, 1);
+    avg = @(X, w) (w' * X) ./ sum(w);
+    mx = @(X) [mod(X(:, 1) - lw(1), ls(1)) + lw(1) ...
+               mod(X(:, 2) - lw(2), ls(2)) + lw(2) ...
+               mod(X(:, 3) - lw(3), ls(3)) + lw(3)];
+
+    fig = figure;
     for s = 0:150000
         % Backward Euler step
         [Flc, Xlc] = cell.force(X);
@@ -61,34 +63,38 @@ function X = RBFFluidTest(domain, rho, mu, cell, vessel)
         X = X + k * Ulc;
         Y = Y + k * Ulv;
 
-        disp(sprintf('%d: %10g %10g %10g\n', s, max(abs(X - X0))));
+        fprintf('%d: %12g %12g %12g %12g %12g %12g\n', s, avg(Xlc, cell.ds), avg(Flv, vessel.ds));
         if mod(s, 10) == 0
-            %U = cell.id * Ulc;
+            [csx, csy, csz] = cell.surf(X);
+            [vsx, vsy, vsz] = vessel.surf(Y);
             % Plot
             subplot(1, 2, 1);
-            scatter3(X(:, 1), X(:, 2), X(:, 3), 50, r, 'filled');
+            ezsurf(csx, csy, csz, [0, pi, 0, 2*pi]);
             hold on;
-            ind = Xlv(:, 1) >= 2^-9;
-            scatter3(Xlv(ind, 1), mod(Xlv(ind, 2), 2^-8), Xlv(ind, 3), 25, 'filled');
-            %quiver3(Xlc(:, 1), Xlc(:, 2), Xlc(:, 3), 1e1 / 64 * U(:, 1), 1e1 / 64 * U(:, 2), 1e1 / 64 * U(:, 3), 'AutoScale', 'off');
+            ezsurf(vsx, vsy, vsz, [-pi/2, pi/2, 0, 1]);
             hold off;
             axis equal;
             xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
-            title(sprintf('t = %f', s * k));
+            title(sprintf('$t = %f$', s * k), 'Interpreter', 'latex');
             view([-90 0]);
 
             subplot(1, 2, 2);
-            scatter3(X(:, 1), X(:, 2), X(:, 3), 50, r, 'filled');
+            ezsurf(csx, csy, csz, [0, pi, 0, 2*pi]);
             hold on;
-            scatter3(Xlv(:, 1), mod(Xlv(:, 2), 2^-8), Xlv(:, 3), 25, 'filled');
-            %quiver3(Xlc(:, 1), Xlc(:, 2), Xlc(:, 3), 1e1 / 64 * U(:, 1), 1e1 / 64 * U(:, 2), 1e1 / 64 * U(:, 3), 'AutoScale', 'off');
+            ezsurf(vsx, vsy, vsz, [0, 2*pi, 0, 1]);
             hold off;
             axis equal;
             xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
-            title(sprintf('t = %f', s * k));
+            title(sprintf('$t = %f$', s * k), 'Interpreter', 'latex');
             view([0 0]);
             
             drawnow;
+
+            set(fig, 'Units', 'Inches');
+            pos = get(fig, 'Position');
+            set(fig, 'PaperPositionMode', 'Auto', 'PaperUnits', 'Inches', 'PaperSize', [pos(3), pos(4)]);
+            saveas(fig, sprintf('simulation%03d.pdf', s/1000));
         end
     end
+    close all;
 end

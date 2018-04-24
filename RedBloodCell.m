@@ -17,7 +17,7 @@ classdef RedBloodCell < Sphere & ForceMixin
         function x = shape(params)
             xs = Sphere.shape(params);
 
-            R = 4e-4;  % radius of 4e-4 cm
+            R = 3.91e-1;  % radius of 3.91e-4 cm
             r = xs(:, 1).^2 + xs(:, 3).^2;
             xt = R * xs(:, 1);
             % Coefficients from Skalak, et al., (1973).
