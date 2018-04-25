@@ -1,4 +1,4 @@
-classdef ClosedSurface
+classdef ClosedSurface < ParamObject
     % ClosedSurface Geometric representation of a closed shape in 3D.
 
     properties
@@ -16,14 +16,18 @@ classdef ClosedSurface
         psi
     end
 
+    methods (Abstract)
+        shape(obj, x)
+    end
+
     methods (Abstract, Static)
         sample(n)
-        shape(x)
         metric(data, sample)
     end
 
     methods
         function obj = ClosedSurface(n, m, rbf)
+            obj@ParamObject(varargin{:});
             data = obj.sample(n);
             sample = obj.sample(m);
             [id, da, db, daa, dab, dbb, phi, psi] = obj.operators(rbf, data, sample);
@@ -76,6 +80,12 @@ classdef ClosedSurface
             pz = @(u, v) reshape(surfer(u, v, w(:, 3)), size(u));
         end
 
+        function r = measure_ratio(obj, x, y)
+            gx = obj.geometry(x);
+            gy = obj.geometry(y);
+            r = sqrt(gx.I ./ gy.I);
+        end
+
         function geom = parameters(~, ta, tb, taa, tab, tbb)
             E = dot(ta, ta, 2);
             F = dot(ta, tb, 2);
@@ -109,6 +119,8 @@ classdef ClosedSurface
             geom.f = f;
             geom.g = g;
 
+            geom.I = I;
+            geom.II = II;
             geom.H = H;
             geom.K = K;
 

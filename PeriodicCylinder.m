@@ -1,8 +1,8 @@
 classdef PeriodicCylinder < ClosedSurface
     methods
-        function obj = PeriodicCylinder(n, m)
+        function obj = PeriodicCylinder(n, m, varargin)
             rbf = PolyharmonicSpline(4);
-            obj@ClosedSurface(n, m, rbf);
+            obj@ClosedSurface(n, m, rbf, varargin{:});
             obj.ds = 2 * pi * obj.ds;
         end
 
@@ -52,6 +52,14 @@ classdef PeriodicCylinder < ClosedSurface
             py = @(u, v) reshape(surfer(u, v, w(:, 2)), size(u));
             pz = @(u, v) reshape(surfer(u, v, w(:, 3)), size(u));
         end
+
+        function [x, r] = shape(~, params)
+            theta = params(:, 1);
+            z = params(:, 2);
+
+            x = [cos(theta) sin(theta) z];
+            r = 1;
+        end
     end
 
     methods(Static)
@@ -64,13 +72,6 @@ classdef PeriodicCylinder < ClosedSurface
             r_aa = cos(dt);
             r_ab = 0;
             r_bb = 4*pi^2*cos(2*pi*dz);
-        end
-
-        function x = shape(params)
-            theta = params(:, 1);
-            z = params(:, 2);
-
-            x = [cos(theta) sin(theta) z];
         end
 
         function params = sample(n)

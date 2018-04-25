@@ -1,9 +1,6 @@
 classdef ForceMixin
-    methods(Abstract, Static)
-        shape(params)
-    end
-
     methods(Abstract)
+        shape(obj, params)
         geometry(obj, x)
     end
 

@@ -4,31 +4,29 @@ classdef BloodVessel < PeriodicCylinder & ForceMixin
             obj@PeriodicCylinder(n, m);
             obj@ForceMixin(varargin{:});
 
-            data = obj.data_sites;
-            x = BloodVessel.shape(data);
-            y = PeriodicCylinder.shape(data);
-            gx = obj.geometry(x);
-            gy = obj.geometry(y);
-            obj.ds = sqrt((gx.E .* gx.G - gx.F.^2) ./ (gy.E .* gy.G - gy.F.^2)) .* obj.ds;
+            [~, r] = obj.shape(obj.data_sites);
+            obj.ds = r .* obj.ds;
         end
-    end
 
-    methods(Static)
-        function x = shape(params)
+        function [x, r] = shape(obj, params)
             theta = params(:, 1);
             zeta = params(:, 2);
 
             rho = @(x) tanh(10*(x+0.5))-tanh(10*(x-0.5));
-            r = 0;
+            d = 0;
             for n = -1:1
-                r = r + rho(-1 + 2 * (zeta - n));
+                d = d + rho(-1 + 2 * (zeta - n));
             end
 
-            x = [2^-9 + 15e-4 * (1 - 1/12 * r) .* cos(theta), ...
+            x = [2^-9 + 15e-4 * (1 - 1/12 * d) .* cos(theta), ...
                  2^-8 * zeta, ...
-                 2^-9 + 15e-4 * (1 - 1/12 * r) .* sin(theta)];
+                 2^-9 + 15e-4 * (1 - 1/12 * d) .* sin(theta)];
+            [y, r0] = shape@PeriodicCylinder(obj, params);
+            r = r0 .* obj.measure_ratio(x, y);
         end
+    end
 
+    methods(Static)
         function params = sample(n)
             rho = @(x) tanh(10*(x+0.5))-tanh(10*(x-0.5));
             drho = @(x) -10 * tanh(10*(x+0.5)).^2 + 10 * tanh(10*(x-0.5)).^2;

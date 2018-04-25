@@ -23,6 +23,7 @@ function fn = combine(left, right)
         function f = forces(curr)
             f = left_force(curr) + right_force(curr);
         end
+        fn = @forces;
     end
     fn = @combined_initializer;
 end

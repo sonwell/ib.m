@@ -1,9 +1,18 @@
 classdef Sphere < ClosedSurface
     methods
-        function obj = Sphere(n, m)
+        function obj = Sphere(n, m, varargin)
             rbf = PolyharmonicSpline(10);
-            obj@ClosedSurface(n, m, rbf);
+            poly = Polynomials(0, 2);
+            obj@ClosedSurface(n, m, rbf, poly, varargin{:});
             obj.ds = 4 * pi * obj.ds;
+        end
+
+        function [x, r] = shape(~, params)
+            phi = params(:, 1);
+            theta = params(:, 2);
+
+            x = [sin(phi) .* cos(theta), sin(phi) .* sin(theta), cos(phi)];
+            r = 1;
         end
     end
 
@@ -11,20 +20,12 @@ classdef Sphere < ClosedSurface
         function [r, r_p, r_t, r_pp, r_pt, r_tt] = metric(data, sample)
             [pj, pk, dt] = process(data, sample);
 
-            sc = 1; %(size(data, 1) / 400)^(1/4);
-            r    = sc * sqrt(2 * (1-sin(pj).*sin(pk).*cos(dt)-cos(pj).*cos(pk)) + 2^-51);
-            r_p  = sc * sin(pj).*cos(pk) -cos(pj).*sin(pk).*cos(dt);
-            r_t  = sc * sin(pj).*sin(pk).*sin(dt);
-            r_pp = sc * cos(pj).*cos(pk) +sin(pj).*sin(pk).*cos(dt);
-            r_pt = sc * cos(pj).*sin(pk).*sin(dt);
-            r_tt = sc * sin(pj).*sin(pk).*cos(dt);
-        end
-
-        function x = shape(params)
-            phi = params(:, 1);
-            theta = params(:, 2);
-
-            x = [sin(phi) .* cos(theta), sin(phi) .* sin(theta), cos(phi)];
+            r    = sqrt(2 * (1-sin(pj).*sin(pk).*cos(dt)-cos(pj).*cos(pk)) + 2^-51);
+            r_p  = sin(pj).*cos(pk) -cos(pj).*sin(pk).*cos(dt);
+            r_t  = sin(pj).*sin(pk).*sin(dt);
+            r_pp = cos(pj).*cos(pk) +sin(pj).*sin(pk).*cos(dt);
+            r_pt = cos(pj).*sin(pk).*sin(dt);
+            r_tt = sin(pj).*sin(pk).*cos(dt);
         end
 
         function params = sample(n)
