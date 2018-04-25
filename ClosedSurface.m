@@ -5,6 +5,7 @@ classdef ClosedSurface < ParamObject
         data_sites  % Interpolation point parameters
         sample_sites  % Evaluation point parameters
         rbf
+        poly
         id  % Evaluation matrix
         da  % Differentiation matrix with respect to the first parameter
         db  % Differentiation matrix with respect to the second parameter
@@ -26,13 +27,14 @@ classdef ClosedSurface < ParamObject
     end
 
     methods
-        function obj = ClosedSurface(n, m, rbf)
+        function obj = ClosedSurface(n, m, rbf, poly, varargin)
             obj@ParamObject(varargin{:});
             data = obj.sample(n);
             sample = obj.sample(m);
-            [id, da, db, daa, dab, dbb, phi, psi] = obj.operators(rbf, data, sample);
+            [id, da, db, daa, dab, dbb, phi, psi] = obj.operators(rbf, poly, data, sample);
 
             obj.rbf = rbf;
+            obj.poly = poly;
             obj.data_sites = data;
             obj.sample_sites = sample;
             obj.id = id;
@@ -86,7 +88,63 @@ classdef ClosedSurface < ParamObject
             r = sqrt(gx.I ./ gy.I);
         end
 
-        function geom = parameters(~, ta, tb, taa, tab, tbb)
+        function [x, ta, tb, taa, tab, tbb] = representation(obj, y)
+            x = obj.id * y;
+
+            ta = obj.da * y;
+            tb = obj.db * y;
+
+            taa = obj.daa * y;
+            tab = obj.dab * y;
+            tbb = obj.dbb * y;
+        end
+
+        function geom = geometry(obj, y)
+            [x, ta, tb, taa, tab, tbb] = obj.representation(y);
+            geom = obj.parameters(ta, tb, taa, tab, tbb);
+            geom.x = x;
+        end
+
+        function [id, da, db, daa, dab, dbb, phi, psi] = operators(obj, rbf, poly, data, sample)
+            npts = size(data, 1);
+            r = obj.metric(data, data);
+            phi = rbf.phi(r);
+            p = poly.p(data);
+            pad = zeros(size(p, 2));
+            itp = [phi p; p' pad];
+            %one = ones(npts, 1);
+            %itp = [phi one; one' 0];
+            trim = @(m) m(:, 1:npts);
+
+            %mpts = size(sample, 1);
+            [r, r_a, r_b, r_aa, r_ab, r_bb] = obj.metric(data, sample);
+            psi = rbf.phi(r);
+            q = poly.p(sample);
+            qa = poly.dp(sample, 1);
+            qb = poly.dp(sample, 2);
+            qaa = poly.dp(sample, [1 1]);
+            qab = poly.dp(sample, [1 2]);
+            qbb = poly.dp(sample, [2 2]);
+
+            id = trim((itp' \ [psi q]')');
+            da = trim((itp' \ [rbf.dphi(r, r_a) qa]')');
+            db = trim((itp' \ [rbf.dphi(r, r_b) qb]')');
+            daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) qaa]')');
+            dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) qab]')');
+            dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) qbb]')');
+            %one = ones(mpts, 1);
+            %zero = zeros(mpts, 1);
+            %id = trim((itp' \ [psi one]')');
+            %da = trim((itp' \ [rbf.dphi(r, r_a) zero]')');
+            %db = trim((itp' \ [rbf.dphi(r, r_b) zero]')');
+            %daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) zero]')');
+            %dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) zero]')');
+            %dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) zero]')');
+        end
+    end
+
+    methods (Static)
+        function geom = parameters(ta, tb, taa, tab, tbb)
             E = dot(ta, ta, 2);
             F = dot(ta, tb, 2);
             G = dot(tb, tb, 2);
@@ -130,44 +188,6 @@ classdef ClosedSurface < ParamObject
             geom.Fb = dot(tab, tb, 2) + dot(ta, tbb, 2);
             geom.Ga = 2 * dot(tab, tb, 2);
             geom.Gb = 2 * dot(tbb, tb, 2);
-        end
-    
-        function [x, ta, tb, taa, tab, tbb] = representation(obj, y)
-            x = obj.id * y;
-
-            ta = obj.da * y;
-            tb = obj.db * y;
-
-            taa = obj.daa * y;
-            tab = obj.dab * y;
-            tbb = obj.dbb * y;
-        end
-
-        function geom = geometry(obj, x)
-            [x, ta, tb, taa, tab, tbb] = obj.representation(x);
-            geom = obj.parameters(ta, tb, taa, tab, tbb);
-            geom.x = x;
-        end
-
-        function [id, da, db, daa, dab, dbb, phi, psi] = operators(obj, rbf, data, sample)
-            npts = size(data, 1);
-            r = obj.metric(data, data);
-            phi = rbf.phi(r);
-            one = ones(npts, 1);
-            itp = [phi one; one' 0];
-            trim = @(m) m(:, 1:npts);
-
-            mpts = size(sample, 1);
-            [r, r_a, r_b, r_aa, r_ab, r_bb] = obj.metric(data, sample);
-            psi = rbf.phi(r);
-            one = ones(mpts, 1);
-            zero = zeros(mpts, 1);
-            id = trim((itp' \ [psi one]')');
-            da = trim((itp' \ [rbf.dphi(r, r_a) zero]')');
-            db = trim((itp' \ [rbf.dphi(r, r_b) zero]')');
-            daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) zero]')');
-            dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) zero]')');
-            dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) zero]')');
         end
     end
 end
