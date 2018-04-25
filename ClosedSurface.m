@@ -112,11 +112,8 @@ classdef ClosedSurface < ParamObject
             p = poly.p(data);
             pad = zeros(size(p, 2));
             itp = [phi p; p' pad];
-            %one = ones(npts, 1);
-            %itp = [phi one; one' 0];
             trim = @(m) m(:, 1:npts);
 
-            %mpts = size(sample, 1);
             [r, r_a, r_b, r_aa, r_ab, r_bb] = obj.metric(data, sample);
             psi = rbf.phi(r);
             q = poly.p(sample);
@@ -132,14 +129,6 @@ classdef ClosedSurface < ParamObject
             daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) qaa]')');
             dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) qab]')');
             dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) qbb]')');
-            %one = ones(mpts, 1);
-            %zero = zeros(mpts, 1);
-            %id = trim((itp' \ [psi one]')');
-            %da = trim((itp' \ [rbf.dphi(r, r_a) zero]')');
-            %db = trim((itp' \ [rbf.dphi(r, r_b) zero]')');
-            %daa = trim((itp' \ [rbf.ddphi(r, r_aa, r_a .* r_a) zero]')');
-            %dab = trim((itp' \ [rbf.ddphi(r, r_ab, r_a .* r_b) zero]')');
-            %dbb = trim((itp' \ [rbf.ddphi(r, r_bb, r_b .* r_b) zero]')');
         end
     end
 
