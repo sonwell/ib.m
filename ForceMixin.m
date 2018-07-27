@@ -1,11 +1,6 @@
-classdef ForceMixin
+classdef (HandleCompatible) ForceMixin
     methods(Abstract)
-        shape(obj, params)
-        geometry(obj, x)
-    end
-
-    properties(Abstract)
-        data_sites
+        shape(self, params)
     end
 
     properties
@@ -13,17 +8,13 @@ classdef ForceMixin
     end
 
     methods
-        function obj = ForceMixin(varargin)
+        function self = ForceMixin(varargin)
             handle = CombineForces(varargin{:});
-            x = obj.shape(obj.data_sites);
-            orig = obj.geometry(x);
-            obj.force_handle = handle(orig);
+            self.force_handle = handle(self);
         end
 
-        function [f, y] = force(obj, x)
-            curr = obj.geometry(x);
-            f = obj.force_handle(curr);
-            y = curr.x;
+        function f = force(self)
+            f = self.force_handle();
         end
     end
 end

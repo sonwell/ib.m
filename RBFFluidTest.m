@@ -1,4 +1,4 @@
-function X = RBFFluidTest(domain, rho, mu, cell, vessel)
+function RBFFluidTest(domain, rho, mu, cell, vessel)
     nx = domain.nx;
     ny = domain.ny;
     nz = domain.nz;
@@ -28,73 +28,107 @@ function X = RBFFluidTest(domain, rho, mu, cell, vessel)
     Fy = 8000; %-mu * (L * Ue(:, 2));
     Ff(:, 2) = Fy;
 
-    % Initial configuration is the reference configuration
-    X = cell.shape(cell.data_sites);
-    Y = vessel.shape(vessel.data_sites);
+    avg = @(X, w) (w * X) ./ sum(w);
 
-    ls = domain.bounds(:, 2) - domain.bounds(:, 1);
-    lw = domain.bounds(:, 1);
-    avg = @(X, w) (w' * X) ./ sum(w);
-    mx = @(X) [mod(X(:, 1) - lw(1), ls(1)) + lw(1) ...
-               mod(X(:, 2) - lw(2), ls(2)) + lw(2) ...
-               mod(X(:, 3) - lw(3), ls(3)) + lw(3)];
+    grc = cell.geometry('reference');
+    grv = vessel.geometry('reference');
+
+    dsc = grc.at_sample_sites.ds;
+    dsv = grv.at_sample_sites.ds;
+
+    force_info = @(obj) deal(obj.force(), obj.ops.id * obj.x);
 
     fig = figure;
     for s = 0:150000
+        xcd = cell.x;
+        xvd = vessel.x;
+
         % Backward Euler step
-        [Flc, Xlc] = cell.force(X);
-        [Flv, Xlv] = vessel.force(Y);
-        Fc = spread(Xlc, Flc, cell.ds);
-        Fv = spread(Xlv, Flv, vessel.ds);
+        [fc, xcs] = force_info(cell);
+        [fv, xvs] = force_info(vessel);
+        Fc = spread(xcs, fc, dsc');
+        Fv = spread(xvs, fv, 1);
         [Us, ~] = solver(handles{1}, Ue, Ue, Fc + Fv + Ff);
-        Ulc = interpolate(X, Us, volume);
-        Ulv = interpolate(Y, Us, volume);
-        Xi = X + (k/2) * Ulc;
-        Yi = Y + (k/2) * Ulv;
+        uc = interpolate(xcd, Us, volume);
+        uv = interpolate(xvd, Us, volume);
+        cell.x = xcd + (k/2) * uc;
+        vessel.x = xvd + (k/2) * uv;
 
         % Crank-Nicolson step
-        [Flc, Xlc] = cell.force(Xi);
-        [Flv, Xlv] = vessel.force(Yi);
-        Fc = spread(Xlc, Flc, cell.ds);
-        Fv = spread(Xlv, Flv, vessel.ds);
+        [fc, xcs] = force_info(cell);
+        [fv, xvs] = force_info(vessel);
+        Fc = spread(xcs, fc, dsc');
+        Fv = spread(xvs, fv, 1);
         [Ue, ~] = solver(handles{2}, Ue, Us, Fc + Fv + Ff);
-        Ulc = interpolate(X, Ue, volume);
-        Ulv = interpolate(Y, Ue, volume);
-        X = X + k * Ulc;
-        Y = Y + k * Ulv;
+        uc = interpolate(xcd, Ue, volume);
+        uv = interpolate(xvd, Ue, volume);
+        cell.x = xcd + k * uc;
+        vessel.x = xvd + k * uv;
 
-        fprintf('%d: %12g %12g %12g %12g %12g %12g\n', s, avg(Xlc, cell.ds), avg(Flv, vessel.ds));
-        if mod(s, 10) == 0
-            [csx, csy, csz] = cell.surf(X);
-            [vsx, vsy, vsz] = vessel.surf(Y);
-            % Plot
-            subplot(1, 2, 1);
-            ezsurf(csx, csy, csz, [0, pi, 0, 2*pi]);
-            hold on;
-            ezsurf(vsx, vsy, vsz, [-pi/2, pi/2, 0, 1]);
-            hold off;
-            axis equal;
-            xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
-            title(sprintf('$t = %f$', s * k), 'Interpreter', 'latex');
-            view([-90 0]);
-
-            subplot(1, 2, 2);
-            ezsurf(csx, csy, csz, [0, pi, 0, 2*pi]);
-            hold on;
-            ezsurf(vsx, vsy, vsz, [0, 2*pi, 0, 1]);
-            hold off;
-            axis equal;
-            xlim(domain.bounds(1, :)); ylim(domain.bounds(2, :)), zlim(domain.bounds(3, :));
-            title(sprintf('$t = %f$', s * k), 'Interpreter', 'latex');
-            view([0 0]);
-            
-            drawnow;
+        fprintf('%d: %12g %12g %12g %12g %12g %12g\n', s, avg(xcs, dsc), avg(fv, dsv));
+        if mod(s, 100) == 0
+            dlmwrite(sprintf('data/rbc_%04d.txt', s/100), cell.x, 'delimiter', '\t', 'precision', 18);
+            dlmwrite(sprintf('data/vessel_%04d.txt', s/100), vessel.x, 'delimiter', '\t', 'precision', 18);
+        end
+        if mod(s, 1000) == 0
+            plotter(domain, s, k, cell, vessel);
 
             set(fig, 'Units', 'Inches');
             pos = get(fig, 'Position');
             set(fig, 'PaperPositionMode', 'Auto', 'PaperUnits', 'Inches', 'PaperSize', [pos(3), pos(4)]);
-            saveas(fig, sprintf('simulation%03d.pdf', s/1000));
+            saveas(fig, sprintf('simulation%03d.pdf', s/10));
         end
     end
     close all;
+end
+
+function plotter(domain, s, k, cell, vessel)
+    lower = domain(:, 1)';
+    length = domain(:, 2)' - lower;
+
+    function psurf(x, y, z, n, params, fc)
+        m = min(n);
+        nr = max(n)' - m;
+        [dx, dy, dz] = ndgrid(0:nr(1), 0:nr(2), 0:nr(3));
+
+        for i = 1:numel(dx)
+            sx = @(u, v) x(u, v) - (m(1) + dx(i)) * length;
+            sy = @(u, v) y(u, v) - (m(2) + dy(i)) * length;
+            sz = @(u, v) z(u, v) - (m(3) + dz(i)) * length;
+            s = ezsurf(sx, sy, sz, params);
+            s.FaceColor = fc;
+            s.EdgeColor = 'none';
+        end
+    end
+
+    function n = frames(x)
+        n = floor(bsxfun(@rdivide, bsxfun(@minus, x, lower), length));
+    end
+
+    function subplotter(vp, cp)
+        hold on;
+        psurf(vx, vy, vz, vn, vp, 'b');
+        psurf(cx, cy, cz, cn, cp, 'r');
+        hold off;
+        axis equal;
+        xlim(domain.bounds(1, :));
+        ylim(domain.bounds(2, :));
+        zlim(domain.bounds(3, :));
+        title(sprintf('$t = %f', s * k), 'Interpreter', 'latex');
+        camlight;
+    end
+
+    [cx, cy, cz] = cell.surf();
+    [vx, vy, vz] = vessel.surf();
+    cn = frames(cell.x);
+    vn = frames(vessel.x);
+
+    % Plot
+    subplot(1, 2, 1);
+    subplotter([-pi/2, pi/2, 0, 2*pi], [0, pi, 0, 2*pi]);
+    view([-90 0]);
+
+    subplot(1, 2, 2);
+    subplotter([-pi, pi, 0, 2*pi], [0, pi, 0, 2*pi]);
+    view([0 0]);
 end

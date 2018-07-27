@@ -8,20 +8,23 @@ function fn = CombineForces(varargin)
     end
 end
 
-function fn = null_forces(~)
-    function f = zero(curr)
-        f = 0 * curr.E;
+function fn = null_forces(obj)
+    gr = obj.geometry('reference');
+    grs = gr.at_sample_sites;
+    f0 = 0 * [grs.r];
+    function f = zero()
+        f = f0;
     end
     fn = @zero;
 end
 
 function fn = combine(left, right)
-    function fn = combined_initializer(orig)
-        left_force = left(orig);
-        right_force = right(orig);
+    function fn = combined_initializer(obj)
+        left_force = left(obj);
+        right_force = right(obj);
 
-        function f = forces(curr)
-            f = left_force(curr) + right_force(curr);
+        function f = forces()
+            f = left_force() + right_force();
         end
         fn = @forces;
     end
