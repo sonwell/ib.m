@@ -90,16 +90,16 @@ classdef ClosedSurface < ParamObject
             w = itp \ [self.x; zeros(size(self.p, 2), size(self.x, 2))];
 
             function y = surfer(u, v, c)
-                sample = [u(:) v(:)];
+                sample = [u v];
                 r = self.metric(data, sample);
                 psi = self.rbf.phi(r);
                 s = self.poly.p(sample);
                 y = [psi s] * c;
             end
             
-            px = @(u, v) reshape(surfer(u, v, w(:, 1)), size(u));
-            py = @(u, v) reshape(surfer(u, v, w(:, 2)), size(u));
-            pz = @(u, v) reshape(surfer(u, v, w(:, 3)), size(u));
+            px = @(u, v) reshape(surfer(u(:), v(:), w(:, 1)), size(u));
+            py = @(u, v) reshape(surfer(u(:), v(:), w(:, 2)), size(u));
+            pz = @(u, v) reshape(surfer(u(:), v(:), w(:, 3)), size(u));
         end
 
         function g = geometry(self, which)

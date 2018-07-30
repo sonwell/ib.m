@@ -10,7 +10,7 @@ classdef PeriodicSheet < Torus
             y = params(:, 1) / (2 * pi);
             z = params(:, 2) / (2 * pi);
 
-            x = [y z 0 * y];
+            x = [y z 0*y];
         end
     end
 end

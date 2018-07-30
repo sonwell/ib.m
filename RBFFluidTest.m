@@ -83,26 +83,27 @@ function RBFFluidTest(domain, rho, mu, cell, vessel)
 end
 
 function plotter(domain, s, k, cell, vessel)
-    lower = domain(:, 1)';
-    length = domain(:, 2)' - lower;
+    lower = domain.bounds(:, 1)';
+    length = domain.bounds(:, 2)' - lower;
 
     function psurf(x, y, z, n, params, fc)
-        m = min(n);
-        nr = max(n)' - m;
+        m = n(1, :);
+        nr = n(2, :) - m;
         [dx, dy, dz] = ndgrid(0:nr(1), 0:nr(2), 0:nr(3));
 
         for i = 1:numel(dx)
-            sx = @(u, v) x(u, v) - (m(1) + dx(i)) * length;
-            sy = @(u, v) y(u, v) - (m(2) + dy(i)) * length;
-            sz = @(u, v) z(u, v) - (m(3) + dz(i)) * length;
-            s = ezsurf(sx, sy, sz, params);
-            s.FaceColor = fc;
-            s.EdgeColor = 'none';
+            sx = @(u, v) x(u, v) - (m(1) - dx(i)) * length(1);
+            sy = @(u, v) y(u, v) - (m(2) - dy(i)) * length(2);
+            sz = @(u, v) z(u, v) - (m(3) - dz(i)) * length(3);
+            srf = ezsurf(sx, sy, sz, params);
+            srf.FaceColor = fc;
+            srf.EdgeColor = 'none';
         end
     end
 
     function n = frames(x)
-        n = floor(bsxfun(@rdivide, bsxfun(@minus, x, lower), length));
+        fr = floor(bsxfun(@rdivide, bsxfun(@minus, x, lower), length));
+        n = [min(fr); max(fr)];
     end
 
     function subplotter(vp, cp)
@@ -114,7 +115,7 @@ function plotter(domain, s, k, cell, vessel)
         xlim(domain.bounds(1, :));
         ylim(domain.bounds(2, :));
         zlim(domain.bounds(3, :));
-        title(sprintf('$t = %f', s * k), 'Interpreter', 'latex');
+        title(sprintf('$t = %f$', s * k), 'Interpreter', 'latex');
         camlight;
     end
 
@@ -124,11 +125,11 @@ function plotter(domain, s, k, cell, vessel)
     vn = frames(vessel.x);
 
     % Plot
-    subplot(1, 2, 1);
-    subplotter([-pi/2, pi/2, 0, 2*pi], [0, pi, 0, 2*pi]);
+    %subplot(1, 2, 1);
+    subplotter([0, 2*pi, 0, 2*pi], [0, pi, 0, 2*pi]);
     view([-90 0]);
 
-    subplot(1, 2, 2);
-    subplotter([-pi, pi, 0, 2*pi], [0, pi, 0, 2*pi]);
-    view([0 0]);
+    %subplot(1, 2, 2);
+    %subplotter([-pi, pi, 0, 2*pi], [0, pi, 0, 2*pi]);
+    %view([0 0]);
 end
